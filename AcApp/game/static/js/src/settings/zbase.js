@@ -101,6 +101,8 @@ class Settings {
 
         this.$register.hide();
 
+        this.$acwing_login = this.$settings.find('.ac-game-settings-acwing img');
+
         this.root.$ac_game.append(this.$settings);
 
         this.start();
@@ -114,6 +116,11 @@ class Settings {
     add_listening_events() { // 绑定监听函数
         this.add_listening_events_login();
         this.add_listening_events_register();
+
+        let outer = this;
+        this.$acwing_login.click(function() {
+            outer.acwing_login();
+        });
     }
 
     add_listening_events_login() { // 登录界面的监听函数
@@ -137,6 +144,19 @@ class Settings {
 
         this.$register_submit.click(function() { // 注册
             outer.register_on_remote();
+        });
+    }
+
+    acwing_login() {
+        $.ajax({
+            url: "https://app3322.acapp.acwing.com.cn:8443/settings/acwing/web/apply_code/",
+            type: "GET",
+            success: function(resp) {
+                console.log(resp);
+                if (resp.result === "success") {
+                    window.location.replace(resp.apply_code_url);
+                }
+            },
         });
     }
 
