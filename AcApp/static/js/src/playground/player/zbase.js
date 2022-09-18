@@ -17,7 +17,7 @@ class Player extends AcGameObject {
         this.speed = speed; // 每秒钟移动 speed
         this.is_me = is_me;
 
-        this.eps = 0.1; // 移动误差
+        this.eps = 0.01; // 移动误差
         this.friction = 0.9; // 摩擦力，在 player 被击中后推移的过程中速度由快变慢，即有摩擦力在作用
 
         this.cur_skill = null; // 当前选择的技能是什么
@@ -34,8 +34,8 @@ class Player extends AcGameObject {
             this.add_listening_events();
         }
         else {
-            let tx = Math.random() * this.playground.width;
-            let ty = Math.random() * this.playground.height;
+            let tx = Math.random() * this.playground.width / this.playground.scale;
+            let ty = Math.random() * this.playground.height / this.playground.scale;
             this.move_to(tx, ty);
         }
     }
@@ -50,11 +50,11 @@ class Player extends AcGameObject {
             const rect = outer.ctx.canvas.getBoundingClientRect(); // 获取画布在整个屏幕的位置
 
             if (e.which === 3) { // e.which === 3 表示右键，e.which === 1 表示左键，e.which === 2 表示滚轮
-                outer.move_to(e.clientX - rect.left, e.clientY - rect.top); // e.clientX 表示鼠标点击的横坐标，e.clientY 表示鼠标点击的纵坐标
+                outer.move_to((e.clientX - rect.left) / outer.playground.scale, (e.clientY - rect.top) / outer.playground.scale); // e.clientX 表示鼠标点击的横坐标，e.clientY 表示鼠标点击的纵坐标
             }
             else if (e.which === 1) {
                 if (outer.cur_skill === "fireball") {
-                    outer.shoot_fireball(e.clientX - rect.left, e.clientY - rect.top);
+                    outer.shoot_fireball((e.clientX - rect.left) / outer.playground.scale, (e.clientY - rect.top) / outer.playground.scale);
                 }
 
                 outer.cur_skill = null;
@@ -71,14 +71,14 @@ class Player extends AcGameObject {
 
     shoot_fireball(tx, ty) { // 施放火球，参数为火球发射的方向
         let x = this.x, y = this.y;
-        let radius = this.playground.height * 0.01;
+        let radius = 0.01;
         let angle = Math.atan2(ty - this.y, tx - this.x);
         let vx = 1 * Math.cos(angle);
         let vy = 1 * Math.sin(angle);
         let color = "orange";
-        let speed = this.playground.height * 0.5;
-        let move_length = this.playground.height * 1;
-        new FireBall(this.playground, this, x, y, radius, vx, vy, color, speed, move_length, this.playground.height * 0.01);
+        let speed = 0.5;
+        let move_length = 1;
+        new FireBall(this.playground, this, x, y, radius, vx, vy, color, speed, move_length, 0.01);
     }
 
     get_dist(x1, y1, x2, y2) { // 获取当前坐标到目标坐标的欧几里德距离
@@ -107,7 +107,7 @@ class Player extends AcGameObject {
         }
 
         this.radius -= damage; // 半径就是血量
-        if (this.radius < 10) {
+        if (this.radius < this.eps) {
             this.destroy();
             return false;
         }
@@ -118,13 +118,18 @@ class Player extends AcGameObject {
     }
 
     update() {
+        this.update_move();
+        this.render();
+    }
+
+    update_move() { // 更新移动
         this.spent_time += this.timedelta / 1000;
         if (!this.is_me && this.spent_time > 4 && Math.random() < 1 / 300.0) {
             let player = this.playground.players[Math.floor(Math.random() * this.playground.players.length)];
             this.shoot_fireball(player.x, player.y);
         }
 
-        if (this.damage_speed > 10) { // 当被碰撞了
+        if (this.damage_speed > this.eps) { // 当被碰撞了
             this.vx = this.vy = 0;
             this.move_length = 0;
             this.x += this.damage_x * this.damage_speed * this.timedelta / 1000;
@@ -137,8 +142,8 @@ class Player extends AcGameObject {
                 this.vx = this.vy = 0;
 
                 if (!this.is_me) {
-                    let tx = Math.random() * this.playground.width;
-                    let ty = Math.random() * this.playground.height;
+                    let tx = Math.random() * this.playground.width / this.playground.scale;
+                    let ty = Math.random() * this.playground.height / this.playground.scale;
                     this.move_to(tx, ty);
                 }
             }
@@ -149,21 +154,21 @@ class Player extends AcGameObject {
                 this.move_length -= moved; // 减去已经移动的距离
             }
         }
-        this.render();
     }
 
     render() {
+        let scale = this.playground.scale; // 染色需要绝对值
         if (this.is_me) {
             this.ctx.save();
             this.ctx.beginPath();
-            this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
             this.ctx.stroke();
             this.ctx.clip();
-            this.ctx.drawImage(this.img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); 
+            this.ctx.drawImage(this.img, (this.x - this.radius) * scale, (this.y - this.radius) * scale, this.radius * 2 * scale, this.radius * 2 * scale);
             this.ctx.restore();
         } else {
             this.ctx.beginPath();
-            this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
         }
