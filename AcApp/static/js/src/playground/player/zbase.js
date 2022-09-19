@@ -1,6 +1,8 @@
 class Player extends AcGameObject {
-    constructor(playground, x, y, radius, color, speed, is_me) {
+    constructor(playground, x, y, radius, color, speed, character, username, photo) {
         super();
+
+        console.log(character, username, photo);
 
         this.playground = playground;
         this.ctx = this.playground.game_map.ctx;
@@ -15,7 +17,9 @@ class Player extends AcGameObject {
         this.radius = radius;
         this.color = color;
         this.speed = speed; // 每秒钟移动 speed
-        this.is_me = is_me;
+        this.character = character; // 区分己方，Bot，敌人
+        this.username = username;
+        this.photo = photo;
 
         this.eps = 0.01; // 移动误差
         this.friction = 0.9; // 摩擦力，在 player 被击中后推移的过程中速度由快变慢，即有摩擦力在作用
@@ -23,17 +27,17 @@ class Player extends AcGameObject {
         this.cur_skill = null; // 当前选择的技能是什么
         this.spent_time = 0; // 倒计时无敌时间
 
-        if (is_me) {
+        if (this.character !== "robot") {
             this.img = new Image();
-            this.img.src = this.playground.root.settings.photo;
+            this.img.src = this.photo;
         }
     }
 
     start() {
-        if (this.is_me) {
+        if (this.character === "me") {
             this.add_listening_events();
         }
-        else {
+        else if (this.character === "robot") { // 只有机器人才会初始动一下
             let tx = Math.random() * this.playground.width / this.playground.scale;
             let ty = Math.random() * this.playground.height / this.playground.scale;
             this.move_to(tx, ty);
@@ -124,7 +128,7 @@ class Player extends AcGameObject {
 
     update_move() { // 更新移动
         this.spent_time += this.timedelta / 1000;
-        if (!this.is_me && this.spent_time > 4 && Math.random() < 1 / 300.0) {
+        if (this.character === "robot" && this.spent_time > 4 && Math.random() < 1 / 300.0) {
             let player = this.playground.players[Math.floor(Math.random() * this.playground.players.length)];
             this.shoot_fireball(player.x, player.y);
         }
@@ -141,7 +145,7 @@ class Player extends AcGameObject {
                 this.move_length = 0;
                 this.vx = this.vy = 0;
 
-                if (!this.is_me) {
+                if (this.character === "robot") {
                     let tx = Math.random() * this.playground.width / this.playground.scale;
                     let ty = Math.random() * this.playground.height / this.playground.scale;
                     this.move_to(tx, ty);
@@ -158,7 +162,7 @@ class Player extends AcGameObject {
 
     render() {
         let scale = this.playground.scale; // 染色需要绝对值
-        if (this.is_me) {
+        if (this.character !== "robot") {
             this.ctx.save();
             this.ctx.beginPath();
             this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
