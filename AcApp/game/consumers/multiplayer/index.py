@@ -46,7 +46,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send( # 参数：room_name（分组），广播的信息
             self.room_name,
             {
-                'type': "group_create_player", # 接收server向组内广播消息的函数名要与这个参数一致
+                'type': "group_send_event", # 接收server向组内广播消息的函数名要与这个参数一致
                 'event': "create_player",
                 'uuid': data['uuid'],
                 'username': data['username'],
@@ -54,11 +54,72 @@ class MultiPlayer(AsyncWebsocketConsumer):
             }
         )
 
-    async def group_create_player(self, data): # 接收server向组内广播消息的函数, 并发送给前端
+    async def group_send_event(self, data): # 接收server向组内广播消息的函数, 并发送给前端
         await self.send(text_data=json.dumps(data))
+
+    async def move_to(self, data): # 群发玩家移动的信息
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "move_to",
+                'uuid': data['uuid'],
+                'tx': data['tx'],
+                'ty': data['ty'],
+            }
+        )
+
+    async def shoot_fireball(self, data): # 群发射击子弹的信息
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "shoot_fireball",
+                'uuid': data['uuid'],
+                'tx': data['tx'],
+                'ty': data['ty'],
+                'ball_uuid': data['ball_uuid'],
+            }
+        )
+
+    async def attack(self, data): # 群发谁击中了谁的信息
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "attack",
+                'uuid': data['uuid'],
+                'attackee_uuid': data['attackee_uuid'],
+                'x': data['x'],
+                'y': data['y'],
+                'angle': data['angle'],
+                'damage': data['damage'],
+                'ball_uuid': data['ball_uuid'],
+            }
+        )
+
+    async def blink(self, data): # 群发玩家闪现的消息
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "blink",
+                'uuid': data['uuid'],
+                'tx': data['tx'],
+                'ty': data['ty'],
+            }
+        )
 
     async def receive(self, text_data): # 接收前端向后端发送的请求
         data = json.loads(text_data)
         event = data['event'] # 根据event做路由
         if event == "create_player":
             await self.create_player(data)
+        elif event == "move_to":
+            await self.move_to(data)
+        elif event == "shoot_fireball":
+            await self.shoot_fireball(data)
+        elif event == "attack":
+            await self.attack(data)
+        elif event == "blink":
+            await self.blink(data)
