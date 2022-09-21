@@ -69,7 +69,7 @@ class Player extends AcGameObject {
         });
         this.playground.game_map.$canvas.mousedown(function(e) { // 读取鼠标右键点击的坐标，并将 player 移动过去
             if (outer.playground.state !== "fighting")
-                return false;
+                return true;
 
             const rect = outer.ctx.canvas.getBoundingClientRect(); // 获取画布在整个屏幕的位置
 
@@ -109,7 +109,19 @@ class Player extends AcGameObject {
             }
         });
 
-        $(window).keydown(function(e) {
+        this.playground.game_map.$canvas.keydown(function(e) {
+            if (e.which === 13) { // 回车键
+                if (outer.playground.mode === "multi mode") { // 多人模式聊天, 打开输入框
+                    outer.playground.chat_field.show_input();
+                    return false;
+                }
+            } else if (e.which === 27) { // 退出键
+                if (outer.playground.mode === "multi mode") { // 关闭输入框
+                    outer.playground.chat_field.hide_input();
+                    return false;
+                }
+            }
+
             if (outer.playground.state !== "fighting")
                 return true; // 不让按键失效
 

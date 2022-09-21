@@ -118,11 +118,91 @@ let AC_GAME_ANIMATION = function(timestamp) { // timestamp 表示在哪个时刻
 
 
 requestAnimationFrame(AC_GAME_ANIMATION);
+class ChatField {
+    constructor(playground) {
+        this.playground = playground;
+
+        this.$history = $(`<div class="ac-game-chat-field-history"></div>`);
+        this.$input = $(`<input type="text" class="ac-game-chat-field-input">`);
+
+        this.$history.hide();
+        this.$input.hide();
+
+        this.func_id = null; // 记下定时函数的id，方便删除
+
+        this.playground.$playground.append(this.$history);
+        this.playground.$playground.append(this.$input);
+
+        this.start();
+    }
+
+    start() {
+        this.add_listening_events();
+    }
+
+    add_listening_events() {
+        let outer = this;
+
+        this.$input.keydown(function(e) {
+            if (e.which === 27) { // 退出键
+                outer.hide_input();
+                return false;
+            } else if (e.which === 13) { // 回车发送消息到历史记录
+                let username = outer.playground.root.settings.username;
+                let text = outer.$input.val();
+                if (text) {
+                    outer.$input.val("");
+                    outer.add_message(username, text);
+                    outer.playground.mps.send_message(username, text);
+                }
+                return false;
+            }
+        });
+    }
+
+    render_message(message) { // 渲染，封装成html的对象
+        return $(`<div>${message}</div>`);
+    }
+
+    add_message(username, text) { // 在历史记录里添加新的信息
+        this.show_history();
+
+        let message = `[${username}]${text}`; // 消息格式
+        this.$history.append(this.render_message(message));
+
+        this.$history.scrollTop(this.$history[0].scrollHeight); // 展示最新内容，滚动条移到最下面
+    }
+
+    show_history() { // 展示历史记录
+        let outer = this;
+
+        this.$history.fadeIn(); // fadein慢慢显示出来
+
+        if (this.func_id) clearTimeout(this.func_id); // 每次打开历史记录时，重新设置一个定时函数
+
+        this.func_id = setTimeout(function() {
+            outer.$history.fadeOut();
+            outer.func_id = null; // 关闭之后将函数id删掉
+        }, 3000);
+    }
+
+    show_input() { // 展示输入框
+        this.show_history();
+
+        this.$input.show();
+        this.$input.focus();
+    }
+
+    hide_input() { // 隐藏输入框
+        this.$input.hide();
+        this.playground.game_map.$canvas.focus();
+    }
+}
 class GameMap extends AcGameObject {
     constructor(playground) {
         super();
         this.playground = playground;
-        this.$canvas = $(`<canvas></canvas>`);
+        this.$canvas = $(`<canvas tabindex=0></canvas>`);
         this.ctx = this.$canvas[0].getContext('2d');
         this.ctx.canvas.width = this.playground.width;
         this.ctx.canvas.height = this.playground.height;
@@ -130,7 +210,7 @@ class GameMap extends AcGameObject {
     }
 
     start() {
-
+        this.$canvas.focus(); // 聚焦
     }
 
     resize() { // 动态修改地图的大小
@@ -293,7 +373,7 @@ class Player extends AcGameObject {
         });
         this.playground.game_map.$canvas.mousedown(function(e) { // 读取鼠标右键点击的坐标，并将 player 移动过去
             if (outer.playground.state !== "fighting")
-                return false;
+                return true;
 
             const rect = outer.ctx.canvas.getBoundingClientRect(); // 获取画布在整个屏幕的位置
 
@@ -333,7 +413,19 @@ class Player extends AcGameObject {
             }
         });
 
-        $(window).keydown(function(e) {
+        this.playground.game_map.$canvas.keydown(function(e) {
+            if (e.which === 13) { // 回车键
+                if (outer.playground.mode === "multi mode") { // 多人模式聊天, 打开输入框
+                    outer.playground.chat_field.show_input();
+                    return false;
+                }
+            } else if (e.which === 27) { // 退出键
+                if (outer.playground.mode === "multi mode") { // 关闭输入框
+                    outer.playground.chat_field.hide_input();
+                    return false;
+                }
+            }
+
             if (outer.playground.state !== "fighting")
                 return true; // 不让按键失效
 
@@ -698,6 +790,8 @@ class MultiPlayerSocket {
                 outer.receive_attack(uuid, data.attackee_uuid, data.x, data.y, data.angle, data.damage, data.ball_uuid);
             } else if (event === "blink") {
                 outer.receive_blink(uuid, data.tx, data.ty);
+            } else if (event === "message") {
+                outer.receive_message(uuid, data.username, data.text);
             }
         };
     }
@@ -822,6 +916,21 @@ class MultiPlayerSocket {
             player.blink(tx, ty);
         }
     }
+
+    send_message(username, text) { // 向后端发送自己在聊天框里发送的消息
+        let outer = this;
+
+        this.ws.send(JSON.stringify({
+            'event': "message",
+            'uuid': outer.uuid,
+            'username': username,
+            'text': text,
+        }));
+    }
+
+    receive_message(uuid, username, text) { // 从后端接收别的玩家发送的消息
+        this.playground.chat_field.add_message(username, text);
+    }
 }
 class AcGamePlayground {
     constructor(root) {
@@ -884,6 +993,7 @@ class AcGamePlayground {
                 this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
             }
         } else if (mode === "multi mode") {
+            this.chat_field = new ChatField(this); // 聊天界面
             this.mps = new MultiPlayerSocket(this); // 建立ws连接
             this.mps.uuid = this.players[0].uuid;
 

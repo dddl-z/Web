@@ -32,7 +32,6 @@ class MultiPlayer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_name, self.channel_name) # 广播消息
 
     async def disconnect(self, close_code):
-        print('disconnect')
         await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
     async def create_player(self, data):
@@ -110,6 +109,18 @@ class MultiPlayer(AsyncWebsocketConsumer):
             }
         )
 
+    async def message(self, data): # 群发玩家发送的消息
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "message",
+                'uuid': data['uuid'],
+                'username': data['username'],
+                'text': data['text'],
+            }
+        )
+
     async def receive(self, text_data): # 接收前端向后端发送的请求
         data = json.loads(text_data)
         event = data['event'] # 根据event做路由
@@ -123,3 +134,5 @@ class MultiPlayer(AsyncWebsocketConsumer):
             await self.attack(data)
         elif event == "blink":
             await self.blink(data)
+        elif event == "message":
+            await self.message(data)
