@@ -25,6 +25,9 @@ class AcGameObject {
     update() { // 每一帧均会执行一次
     }
 
+    late_update() { // 在每一帧的最后执行一次
+    }
+
     on_destroy() { // 在被删除之前，会执行一次
     }
 
@@ -42,7 +45,6 @@ class AcGameObject {
 
 let last_timestamp;
 let AC_GAME_ANIMATION = function(timestamp) { // timestamp 表示在哪个时刻执行这个函数
-    
     for (let i = 0; i < AC_GAME_OBJECTS.length; i ++) {
         let obj = AC_GAME_OBJECTS[i];
         if (!obj.has_called_start) {
@@ -54,6 +56,12 @@ let AC_GAME_ANIMATION = function(timestamp) { // timestamp 表示在哪个时刻
             obj.update();
         }
     }
+
+    for (let i = 0; i < AC_GAME_OBJECTS.length; i ++) {
+        let obj = AC_GAME_OBJECTS[i];
+        obj.late_update();
+    }
+
     last_timestamp = timestamp;
 
     requestAnimationFrame(AC_GAME_ANIMATION);

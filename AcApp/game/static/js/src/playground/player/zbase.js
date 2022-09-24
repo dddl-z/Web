@@ -226,6 +226,8 @@ class Player extends AcGameObject {
     update() {
         this.spent_time += this.timedelta / 1000;
 
+        this.update_win();
+
         if (this.character === "me" && this.playground.state === "fighting") { // 如果是自己且对局没有结束，才会有冷却时间
             this.update_coldtime();
         }
@@ -233,6 +235,13 @@ class Player extends AcGameObject {
         this.update_move();
 
         this.render();
+    }
+
+    update_win() { // 判i断有没有胜利
+        if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
+            this.playground.state = "over";
+            this.playground.score_board.win();
+        }
     }
 
     update_coldtime() { // 更新冷却时间
@@ -342,8 +351,12 @@ class Player extends AcGameObject {
     }
 
     on_destroy() {
-        if (this.character == "me")
-            this.playground.state = "over"; // 去世之后当前玩家的游戏结束，不能进行操作
+        if (this.character == "me") {
+            if (this.playground.state === "fighting") {
+                this.playground.state = "over"; // 去世之后当前玩家的游戏结束，不能进行操作
+                this.playground.score_board.lose();
+            }
+        }
 
         for (let i = 0; i < this.playground.players.length; i ++) {
             if (this.playground.players[i] === this) {
