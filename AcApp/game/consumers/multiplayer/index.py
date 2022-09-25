@@ -16,6 +16,13 @@ from channels.db import database_sync_to_async
 
 class MultiPlayer(AsyncWebsocketConsumer):
     async def connect(self):
+        user = self.scope['user']
+        print(user, user.is_authenticated)
+        if user.is_authenticated:
+            await self.accept()
+        else:
+            await self.close()
+
         self.room_name = None
 
         for i in range(1000): # 找一个合法的房间
@@ -26,8 +33,6 @@ class MultiPlayer(AsyncWebsocketConsumer):
 
         if not self.room_name: # 没有找到合法的房间，说明服务器不够了
             return
-
-        await self.accept()
 
         if not cache.has_key(self.room_name): # 将对战信息存到redis里
             cache.set(self.room_name, [], 3600) # 对战的有效期设置成1小时
@@ -43,7 +48,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_name, self.channel_name) # 广播消息
 
     async def disconnect(self, close_code):
-        if self.room_name:
+        if hasattr(self, 'room_name') and self.room_name:
             await self.channel_layer.group_discard(self.room_name, self.channel_name)
 
     async def create_player(self, data): # 收到前端创建玩家的请求之后，向匹配系统发送请求
